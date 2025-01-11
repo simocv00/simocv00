@@ -1,16 +1,30 @@
-## Hi there 👋
+## Hi there, I'm Mohamed Elayyady 👋
 
-<!--
-**simocv00/simocv00** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
+Welcome to my GitHub profile!
 
-Here are some ideas to get you started:
+**🚀 About Me**
 
-- 🔭 I’m currently working on ...
-- 🌱 I’m currently learning ...
-- 👯 I’m looking to collaborate on ...
-- 🤔 I’m looking for help with ...
-- 💬 Ask me about ...
-- 📫 How to reach me: ...
-- 😄 Pronouns: ...
-- ⚡ Fun fact: ...
--->
+🔭 I’m currently studying at 1337 School
+
+🌱 I’m currently learning C language programming and Data Analysis
+
+💬 Ask me about Linux, C programming, and cybersecurity!
+
+📫 How to reach me: simo.contactt@gmail.com
+
+**🏆 Completed Projects**
+
+✅ Libft – Custom implementation of standard C library functions
+
+✅ Born2beroot – Linux system administration and server security
+
+✅ get_next_line – Efficient file reading line by line in C
+
+✅ ft_printf – Custom implementation of the printf function in C
+
+## 🏅 Badges
+
+![Codewars](https://www.codewars.com/users/simocv0/badges/large)
+
+[![melayyad's 42 stats](https://badge.mediaplus.ma/binary/melayyad)](https://github.com/oakoudad/badge42)
+
