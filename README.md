@@ -8,7 +8,7 @@ Welcome to my GitHub profile!
 
 🌱 I’m currently learning C language programming and Data Analysis
 
-💬 Ask me about Linux, C programming, and cybersecurity!
+💬 Ask me about Linux, C programming!
 
 📫 How to reach me: simo.contactt@gmail.com
 
