@@ -1,30 +1,33 @@
-## Hi there, I'm Mohamed Elayyady 👋
+## Hi there, I'm **Mohamed Elayyady** 👋
 
 Welcome to my GitHub profile!
 
+---
+
 **🚀 About Me**
 
-🔭 I’m currently studying at 1337 School
+🔭 I’m a software engineering student at **1337 School**
+💻 I specialize in **systems programming**, **Linux**, and **low-level development**
+🌱 Currently learning: **system calls**, **concurrency**, **memory management**, and **C++ OOP**
+💬 Ask me about: **Linux, C programming, debugging, or shell behavior**
+📫 How to reach me: **[simo.contactt@gmail.com](mailto:simo.contactt@gmail.com)**
 
-🌱 I’m currently learning C language programming and Data Analysis
+---
 
-💬 Ask me about Linux, C programming!
+**🏆 Main Projects**
 
-📫 How to reach me: simo.contactt@gmail.com
+✅ **Minishell** – A functional shell with parsing, pipelines, redirections, environment handling & signals
+✅ **Philosophers** – Multithreading, mutexes, and deadlock-free synchronization
+✅ **Push Swap** – Optimized sorting algorithm with minimal operations
+✅ **Minitalk** – Client/server communication using UNIX signals
+✅ **So Long** – 2D game engine using MLX
+✅ **Cub3D** – Raycasting engine inspired by Wolfenstein 3D
+✅ **C++ Modules** – Strong foundations in OOP, memory management, and modern C++
 
-**🏆 Completed Projects**
-
-✅ Libft – Custom implementation of standard C library functions
-
-✅ Born2beroot – Linux system administration and server security
-
-✅ get_next_line – Efficient file reading line by line in C
-
-✅ ft_printf – Custom implementation of the printf function in C
+---
 
 ## 🏅 Badges
 
 ![Codewars](https://www.codewars.com/users/simocv0/badges/large)
 
 [![melayyad's 42 stats](https://badge.mediaplus.ma/binary/melayyad)](https://github.com/oakoudad/badge42)
-
