@@ -10,8 +10,10 @@ Focused on low-level systems, networking, and Linux environments.
 - **minishell**: POSIX-compliant shell with pipelines and signal handling.
 - **philosophers**: Dining philosophers problem (threads & mutexes).
 
-**Stack:** C, C++, Python, Bash. 
+**Stack:** C, C++, Python, Bash.
+
 **Contact:** simo.contactt@gmail.com
+
 ## 🏅 Badges
 
 ![Codewars](https://www.codewars.com/users/simocv0/badges/large)
