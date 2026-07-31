@@ -1,23 +1,22 @@
 #!/usr/bin/env python3
 """
 Generate animated profile banner SVGs (dark.svg & light.svg) for GitHub README.
-Converts a source image into pixel-block ASCII art and embeds it into a terminal-
-style SVG panel with animated SYSTEM.INFO section.
+Converts a source image into pixel-block ASCII art using Floyd-Steinberg dithering
+and embeds it into a terminal-style SVG panel with animated SYSTEM.INFO section.
 
 Usage:
     python3 generate_banner.py <image_path> [output_dir]
 """
 import sys, os, math, random, html
 
-# ─── Try importing Pillow ───
 try:
     from PIL import Image
 except ImportError:
-    print("Pillow is required. Install with: pip install Pillow", file=sys.stderr)
+    print("Pillow is required. Install with: pip3 install Pillow", file=sys.stderr)
     sys.exit(1)
 
 # ═══════════════════════════════════════════════════════════════
-# PROFILE DATA — edit here to change info
+# PROFILE DATA
 # ═══════════════════════════════════════════════════════════════
 PROFILE = {
     "email":        "simocv00@42network",
@@ -37,7 +36,6 @@ PROFILE = {
     "portfolio":    "coming soon",
     "linkedin":     "mohamed-el-ayyady",
     "github":       "@simocv00",
-    "facebook":     "",  # empty = skip
 }
 
 # ═══════════════════════════════════════════════════════════════
@@ -45,7 +43,7 @@ PROFILE = {
 # ═══════════════════════════════════════════════════════════════
 THEMES = {
     "dark": {
-        "BG": "#070B16", "PANEL_BG": "#0A101F", "PANEL_GRAD_TOP": "#0A101F",
+        "BG": "#070B16", "PANEL_GRAD_TOP": "#0A101F",
         "PANEL_GRAD_BOT": "#0C1426", "BAR": "#0B1222",
         "CYAN": "#22D3EE", "VIOLET": "#A78BFA", "VIOLET2": "#7C3AED",
         "EMERALD": "#10B981", "RED": "#F87171",
@@ -53,7 +51,6 @@ THEMES = {
         "DOTS": "rgba(148,163,184,0.35)",
         "PILL_BG": "#4C1D95", "PILL_TEXT": "#E9D5FF",
         "LINE": "rgba(255,255,255,0.10)",
-        "BORDER_GLOW": "#22D3EE",
         "GRAD_COLORS": ["#7C3AED", "#22D3EE", "#10B981"],
         "ASCII_COLORS": ["#60A5FA", "#A78BFA", "#22D3EE"],
         "ART_PANEL_STROKE": "rgba(34,211,238,0.35)",
@@ -61,7 +58,7 @@ THEMES = {
         "ART_GLOW_STROKE": "#22D3EE",
     },
     "light": {
-        "BG": "#F0F4F8", "PANEL_BG": "#FFFFFF", "PANEL_GRAD_TOP": "#FFFFFF",
+        "BG": "#F0F4F8", "PANEL_GRAD_TOP": "#FFFFFF",
         "PANEL_GRAD_BOT": "#F8FAFC", "BAR": "#F1F5F9",
         "CYAN": "#0891B2", "VIOLET": "#7C3AED", "VIOLET2": "#7C3AED",
         "EMERALD": "#059669", "RED": "#DC2626",
@@ -69,7 +66,6 @@ THEMES = {
         "DOTS": "rgba(100,116,139,0.30)",
         "PILL_BG": "#EDE9FE", "PILL_TEXT": "#5B21B6",
         "LINE": "rgba(0,0,0,0.08)",
-        "BORDER_GLOW": "#0891B2",
         "GRAD_COLORS": ["#7C3AED", "#0891B2", "#059669"],
         "ASCII_COLORS": ["#1E40AF", "#6D28D9", "#0E7490"],
         "ART_PANEL_STROKE": "rgba(8,145,178,0.35)",
@@ -84,104 +80,114 @@ THEMES = {
 W, H = 1180, 610
 FONT = "ui-monospace,SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace"
 ART_X, ART_Y, ART_W, ART_H = 36, 84, 400, 492
-# pixel block size in the SVG
-BLOCK = 1
-# target grid for ASCII art (within the art panel)
 GRID_W, GRID_H = 300, 340
-# margins inside art panel for the pixel grid
 GRID_OFFSET_X, GRID_OFFSET_Y = 50, 86
+SCALE_X, SCALE_Y = 1.2400, 1.4471
 
 def esc(s):
     return html.escape(str(s), quote=True)
 
+
 # ═══════════════════════════════════════════════════════════════
-# IMAGE → PIXEL BLOCKS
+# IMAGE → DITHERED PIXEL BLOCKS (Floyd-Steinberg)
 # ═══════════════════════════════════════════════════════════════
 
-def image_to_blocks(image_path, grid_w, grid_h, num_layers=20):
-    """
-    Convert an image to a set of pixel-block layers for SVG rendering.
-    Each layer is a list of (x, y) coords. Layers are revealed sequentially
-    with opacity animations to create a 'materializing' effect.
-    """
-    img = Image.open(image_path).convert("L")  # grayscale
-    # Resize to grid
+def floyd_steinberg_dither(img):
+    """Apply Floyd-Steinberg dithering to a grayscale PIL Image.
+    Returns a 2D list of booleans (True = draw pixel)."""
+    w, h = img.size
+    # Work with float array for error diffusion
+    pixels = [[float(img.getpixel((x, y))) for x in range(w)] for y in range(h)]
+    result = [[False] * w for _ in range(h)]
+
+    for y in range(h):
+        for x in range(w):
+            old = pixels[y][x]
+            # Threshold: > 128 = white (draw), <= 128 = black (don't draw)
+            new = 255.0 if old > 128 else 0.0
+            result[y][x] = (new > 0)  # True = light pixel = draw it
+            err = old - new
+            # Diffuse error to neighbors
+            if x + 1 < w:
+                pixels[y][x + 1] += err * 7.0 / 16.0
+            if y + 1 < h:
+                if x - 1 >= 0:
+                    pixels[y + 1][x - 1] += err * 3.0 / 16.0
+                pixels[y + 1][x] += err * 5.0 / 16.0
+                if x + 1 < w:
+                    pixels[y + 1][x + 1] += err * 1.0 / 16.0
+
+    return result
+
+
+def image_to_layers(image_path, grid_w, grid_h, num_layers=30):
+    """Convert image to dithered pixel layers for animated SVG."""
+    img = Image.open(image_path).convert("L")
     img = img.resize((grid_w, grid_h), Image.LANCZOS)
 
-    # Collect all 'dark enough' pixels (these will form the art)
+    # Apply Floyd-Steinberg dithering
+    dithered = floyd_steinberg_dither(img)
+
+    # Collect all "on" pixels
     pixels = []
     for y in range(grid_h):
         for x in range(grid_w):
-            brightness = img.getpixel((x, y))
-            # Lower brightness = darker = we want to draw it
-            # Use threshold to pick up details
-            if brightness < 180:
-                # weight: darker pixels are more important
-                weight = 1.0 - (brightness / 255.0)
-                pixels.append((x, y, weight))
+            if dithered[y][x]:
+                pixels.append((x, y))
 
-    # Sort by weight (darkest first) then shuffle within weight bands
-    # to create a natural reveal effect
-    random.seed(42)  # reproducible
-    random.shuffle(pixels)
-    # Sort partially by weight to ensure darkest appear early
-    pixels.sort(key=lambda p: -p[2])
+    print(f"  Total pixels to draw: {len(pixels)} / {grid_w * grid_h} ({100*len(pixels)//(grid_w*grid_h)}%)")
 
-    # Split into layers
+    # Distribute pixels into layers with spatial locality for a nice reveal
+    # Use a weighted random distribution that groups nearby pixels together
+    random.seed(42)
+
+    # Assign each pixel to a layer based on a combination of position and randomness
+    # This creates a "wave" reveal from top-left to bottom-right with some randomness
+    layer_assignments = []
+    for x, y in pixels:
+        # Normalized position (0-1)
+        progress = (y / grid_h) * 0.6 + (x / grid_w) * 0.2 + random.random() * 0.2
+        layer_idx = int(progress * num_layers)
+        layer_idx = min(layer_idx, num_layers - 1)
+        layer_assignments.append(layer_idx)
+
     layers = [[] for _ in range(num_layers)]
-    for i, (x, y, w) in enumerate(pixels):
-        layer_idx = i % num_layers
-        layers[layer_idx].append((x, y))
+    for i, (x, y) in enumerate(pixels):
+        layers[layer_assignments[i]].append((x, y))
 
-    return layers
+    return layers, pixels
 
 
-def blocks_to_svg_paths(layers, offset_x, offset_y, scale_x=1.24, scale_y=1.45):
-    """
-    Convert pixel block layers into SVG path elements with staggered animations.
-    Uses <path> with M...h1v1h-1z patterns (same as original).
-    """
-    parts = []
-    for i, layer in enumerate(layers):
-        if not layer:
-            continue
-        begin = 0.20 + i * 0.04  # stagger animation start
-        # Build path data: each pixel is a 1x1 rect
-        # Sort by y then x for efficient path construction
-        layer_sorted = sorted(layer, key=lambda p: (p[1], p[0]))
+def layer_to_path_data(layer):
+    """Convert a layer of (x,y) pixels to SVG path data with run-length encoding."""
+    if not layer:
+        return ""
+    # Sort by y then x
+    sorted_px = sorted(layer, key=lambda p: (p[1], p[0]))
 
-        # Group consecutive horizontal pixels
-        path_cmds = []
-        j = 0
-        while j < len(layer_sorted):
-            x, y = layer_sorted[j]
-            # Find consecutive run
-            run = 1
-            while j + run < len(layer_sorted) and layer_sorted[j + run] == (x + run, y):
-                run += 1
-            if run == 1:
-                path_cmds.append(f"M{x} {y}h1v1h-1z")
-            else:
-                path_cmds.append(f"M{x} {y}h{run}v1h-{run}z")
-            j += run
+    cmds = []
+    i = 0
+    while i < len(sorted_px):
+        x, y = sorted_px[i]
+        # Find horizontal run of consecutive pixels
+        run = 1
+        while (i + run < len(sorted_px) and
+               sorted_px[i + run][1] == y and
+               sorted_px[i + run][0] == x + run):
+            run += 1
+        if run == 1:
+            cmds.append(f"M{x} {y}h1v1h-1z")
+        else:
+            cmds.append(f"M{x} {y}h{run}v1h-{run}z")
+        i += run
 
-        path_d = "".join(path_cmds)
-        parts.append(
-            f'<g opacity="0"><animate attributeName="opacity" values="0;1" '
-            f'dur="0.9s" begin="{begin:.2f}s" fill="freeze" calcMode="spline" '
-            f'keyTimes="0;1" keySplines=".4 0 .2 1"/>'
-            f'<path d="{path_d}"/></g>'
-        )
-
-    # Wrap with transform and fill
-    return parts
+    return "".join(cmds)
 
 
 def build_ascii_art_section(image_path, theme):
     """Build the complete ASCII art section of the SVG."""
     t = THEMES[theme]
-    layers = image_to_blocks(image_path, GRID_W, GRID_H, num_layers=20)
-    svg_paths = blocks_to_svg_paths(layers, GRID_OFFSET_X, GRID_OFFSET_Y)
+    layers, all_pixels = image_to_layers(image_path, GRID_W, GRID_H, num_layers=30)
 
     parts = []
     # Art panel label
@@ -197,51 +203,51 @@ def build_ascii_art_section(image_path, theme):
         f'fill="{t["ART_PANEL_FILL"]}" stroke="{t["ART_PANEL_STROKE"]}"/>'
     )
 
-    # Pixel art group with transform
+    # ── Phase 1: Violet pixel-by-pixel reveal ──
     parts.append(
-        f'<g transform="translate({GRID_OFFSET_X},{GRID_OFFSET_Y}) scale(1.2400,1.4471)" '
+        f'<g transform="translate({GRID_OFFSET_X},{GRID_OFFSET_Y}) scale({SCALE_X},{SCALE_Y})" '
         f'fill="{t["VIOLET"]}" shape-rendering="crispEdges">'
     )
-    # Add the animated phase-in → then switch to gradient fill
+    # Hide this group at 3.2s (gradient version takes over)
     parts.append(f'<set attributeName="opacity" to="0" begin="3.2s"/>')
 
-    for path_svg in svg_paths:
-        parts.append(path_svg)
+    for i, layer in enumerate(layers):
+        if not layer:
+            continue
+        begin = 0.20 + i * 0.033  # stagger: ~1s total reveal
+        path_d = layer_to_path_data(layer)
+        if path_d:
+            parts.append(
+                f'<g opacity="0"><animate attributeName="opacity" values="0;1" '
+                f'dur="0.9s" begin="{begin:.2f}s" fill="freeze" calcMode="spline" '
+                f'keyTimes="0;1" keySplines=".4 0 .2 1"/>'
+                f'<path d="{path_d}"/></g>'
+            )
 
     parts.append('</g>')
 
-    # Second copy with gradient fill (appears after phase-in completes)
+    # ── Phase 2: Gradient-fill version (fades in at 3.2s) ──
+    all_path_data = layer_to_path_data(all_pixels)
     parts.append(
-        f'<g transform="translate({GRID_OFFSET_X},{GRID_OFFSET_Y}) scale(1.2400,1.4471)" '
+        f'<g transform="translate({GRID_OFFSET_X},{GRID_OFFSET_Y}) scale({SCALE_X},{SCALE_Y})" '
         f'fill="url(#asciiGrad)" shape-rendering="crispEdges" opacity="0">'
         f'<animate attributeName="opacity" values="0;1" dur="1.2s" begin="3.2s" fill="freeze" '
         f'calcMode="spline" keyTimes="0;1" keySplines=".4 0 .2 1"/>'
+        f'<path d="{all_path_data}"/>'
+        f'</g>'
     )
-    # Combine all paths without animation
-    for layer in layers:
-        if not layer:
-            continue
-        layer_sorted = sorted(layer, key=lambda p: (p[1], p[0]))
-        path_cmds = []
-        j = 0
-        while j < len(layer_sorted):
-            x, y = layer_sorted[j]
-            run = 1
-            while j + run < len(layer_sorted) and layer_sorted[j + run] == (x + run, y):
-                run += 1
-            if run == 1:
-                path_cmds.append(f"M{x} {y}h1v1h-1z")
-            else:
-                path_cmds.append(f"M{x} {y}h{run}v1h-{run}z")
-            j += run
-        parts.append(f'<path d="{"".join(path_cmds)}"/>')
-    parts.append('</g>')
 
-    # Corner brackets around art panel
-    parts.append(f'<path d="M 50 84 L 36 84 L 36 98" fill="none" stroke="{t["CYAN"]}" stroke-width="2" opacity="0.8"/>')
-    parts.append(f'<path d="M 422 84 L 436 84 L 436 98" fill="none" stroke="{t["CYAN"]}" stroke-width="2" opacity="0.8"/>')
-    parts.append(f'<path d="M 50 576 L 36 576 L 36 562" fill="none" stroke="{t["CYAN"]}" stroke-width="2" opacity="0.8"/>')
-    parts.append(f'<path d="M 422 576 L 436 576 L 436 562" fill="none" stroke="{t["CYAN"]}" stroke-width="2" opacity="0.8"/>')
+    # Corner brackets
+    for (x1, y1, x2, y2, x3, y3) in [
+        (50, 84, 36, 84, 36, 98),
+        (422, 84, 436, 84, 436, 98),
+        (50, 576, 36, 576, 36, 562),
+        (422, 576, 436, 576, 436, 562),
+    ]:
+        parts.append(
+            f'<path d="M {x1} {y1} L {x2} {y2} L {x3} {y3}" '
+            f'fill="none" stroke="{t["CYAN"]}" stroke-width="2" opacity="0.8"/>'
+        )
 
     return "\n".join(parts)
 
@@ -278,11 +284,10 @@ def build_system_info(theme):
     ]
     y_pos = 162
     for label, value, begin in rows:
-        dots = "." * max(5, 60 - len(label) - len(value))
-        parts.append(_info_row(label, value, dots, y_pos, begin, t))
+        parts.append(_info_row(label, value, y_pos, begin, t))
         y_pos += 23
 
-    # Core section (after a small gap)
+    # Core section
     y_pos += 8
     core_rows = [
         ("Core.Lang",     p["core_lang"],      1.72),
@@ -292,8 +297,7 @@ def build_system_info(theme):
         ("Core.Infra",    p["core_infra"],     2.20),
     ]
     for label, value, begin in core_rows:
-        dots = "." * max(5, 60 - len(label) - len(value))
-        parts.append(_info_row(label, value, dots, y_pos, begin, t))
+        parts.append(_info_row(label, value, y_pos, begin, t))
         y_pos += 23
 
     # Contact separator
@@ -309,20 +313,16 @@ def build_system_info(theme):
 
     # Contact rows
     contact_rows = [
-        ("Grid.Mail",     p["mail"],           2.54),
-        ("Grid.Portfolio", p["portfolio"],      2.66),
-        ("Grid.LinkedIn", p["linkedin"],        2.78),
-        ("Grid.GitHub",   p["github"],          2.90),
+        ("Grid.Mail",      p["mail"],      2.54),
+        ("Grid.Portfolio",  p["portfolio"], 2.66),
+        ("Grid.LinkedIn",   p["linkedin"],  2.78),
+        ("Grid.GitHub",     p["github"],    2.90),
     ]
-    if p.get("facebook"):
-        contact_rows.append(("Grid.Facebook", p["facebook"], 3.02))
-
     for label, value, begin in contact_rows:
-        dots = "." * max(5, 60 - len(label) - len(value))
-        parts.append(_info_row(label, value, dots, y_pos, begin, t))
+        parts.append(_info_row(label, value, y_pos, begin, t))
         y_pos += 23
 
-    # Footer message
+    # Footer
     y_pos += 8
     parts.append(
         f'<g opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.5s" begin="3.34s" fill="freeze"/>'
@@ -335,7 +335,11 @@ def build_system_info(theme):
     return "\n".join(parts)
 
 
-def _info_row(label, value, dots, y, begin, t):
+def _info_row(label, value, y, begin, t):
+    # Auto-generate dots to fill the space
+    total_chars = 65
+    used = len(label) + len(value) + 2  # +2 for spaces
+    dots = "." * max(5, total_chars - used)
     return (
         f'<g opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.4s" begin="{begin:.2f}s" fill="freeze"/>'
         f'<animateTransform attributeName="transform" type="translate" values="-8 0;0 0" dur="0.4s" begin="{begin:.2f}s" fill="freeze"/>'
@@ -360,9 +364,8 @@ def build_svg(image_path, theme="dark"):
         f'font-family="{FONT}" role="img" aria-label="{esc(p["subject"])} — profile.sh --live">'
     )
 
-    # Defs
+    # ── Defs ──
     svg.append('<defs>')
-    # Accent gradient (animated)
     svg.append(
         f'<linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">'
         f'<stop offset="0" stop-color="{gc[0]}"><animate attributeName="stop-color" values="{gc[0]};{gc[1]};{gc[2]};{gc[0]}" dur="10s" repeatCount="indefinite"/></stop>'
@@ -370,30 +373,23 @@ def build_svg(image_path, theme="dark"):
         f'<stop offset="1" stop-color="{gc[2]}"><animate attributeName="stop-color" values="{gc[2]};{gc[0]};{gc[1]};{gc[2]}" dur="10s" repeatCount="indefinite"/></stop>'
         f'</linearGradient>'
     )
-    # ASCII gradient
     svg.append(
         f'<linearGradient id="asciiGrad" x1="0" y1="0" x2="0" y2="520" gradientUnits="userSpaceOnUse">'
-        f'<stop offset="0" stop-color="{ac[0]}"/>'
-        f'<stop offset="0.45" stop-color="{ac[1]}"/>'
-        f'<stop offset="1" stop-color="{ac[2]}"/>'
+        f'<stop offset="0" stop-color="{ac[0]}"/><stop offset="0.45" stop-color="{ac[1]}"/><stop offset="1" stop-color="{ac[2]}"/>'
         f'<animateTransform attributeName="gradientTransform" type="translate" values="0 -120; 0 120; 0 -120" dur="9s" repeatCount="indefinite"/>'
         f'</linearGradient>'
     )
-    # Panel gradient
     svg.append(f'<linearGradient id="panelGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="{t["PANEL_GRAD_TOP"]}"/><stop offset="1" stop-color="{t["PANEL_GRAD_BOT"]}"/></linearGradient>')
-    # Filters
     svg.append('<filter id="glow8" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="8"/></filter>')
     svg.append('<filter id="glow3" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="3"/></filter>')
     svg.append('<filter id="txtGlow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="0.9" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>')
     svg.append('<clipPath id="winClip"><rect x="2" y="2" width="1176" height="606" rx="18"/></clipPath>')
     svg.append('</defs>')
 
-    # Background
+    # ── Background & chrome ──
     svg.append(f'<rect x="2" y="2" width="1176" height="606" rx="18" fill="{t["BG"]}"/>')
     svg.append('<g clip-path="url(#winClip)">')
     svg.append(f'<rect x="2" y="2" width="1176" height="606" fill="url(#panelGrad)"/>')
-
-    # Title bar
     svg.append(f'<rect x="2" y="2" width="1176" height="46" fill="{t["BAR"]}"/>')
     svg.append(f'<line x1="2" y1="48" x2="1178" y2="48" stroke="{t["LINE"]}"/>')
     svg.append('<circle cx="30" cy="25.0" r="5.5" fill="#ff5f56"/>')
@@ -401,19 +397,16 @@ def build_svg(image_path, theme="dark"):
     svg.append('<circle cx="70" cy="25.0" r="5.5" fill="#27c93f"/>')
     svg.append(f'<text x="590.0" y="29.0" text-anchor="middle" font-size="12" fill="{t["MUTED"]}">{esc(p["email"])} - % ./profile.sh --live</text>')
 
-    # ASCII Art section
+    # ── ASCII art ──
     svg.append(build_ascii_art_section(image_path, theme))
 
-    # System Info section
+    # ── System info ──
     svg.append(build_system_info(theme))
 
-    # Close clip group
+    # ── Close & borders ──
     svg.append('</g>')
-
-    # Outer border glow
     svg.append(f'<rect x="3" y="3" width="1174" height="604" rx="17" fill="none" stroke="url(#accent)" stroke-width="3" opacity="0.55" filter="url(#glow8)"/>')
     svg.append(f'<rect x="3" y="3" width="1174" height="604" rx="17" fill="none" stroke="url(#accent)" stroke-width="1.6"/>')
-
     svg.append('</svg>')
     return "\n".join(svg)
 
@@ -434,10 +427,10 @@ if __name__ == "__main__":
 
     for theme, fname in (("dark", "dark.svg"), ("light", "light.svg")):
         print(f"Generating {fname} ({theme} theme)...")
-        svg = build_svg(image_path, theme)
+        svg_content = build_svg(image_path, theme)
         path = os.path.join(outdir, fname)
         with open(path, "w") as f:
-            f.write(svg)
-        print(f"  → {path} ({len(svg) // 1024} KB)")
+            f.write(svg_content)
+        print(f"  → {path} ({len(svg_content) // 1024} KB)")
 
     print("Done!")
