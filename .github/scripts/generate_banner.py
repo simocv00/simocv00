@@ -1,13 +1,8 @@
 #!/usr/bin/env python3
 """
 Generate animated profile banner SVGs (dark.svg & light.svg) for GitHub README.
-Converts a source image into pixel-block ASCII art using Floyd-Steinberg dithering
-and embeds it into a terminal-style SVG panel with animated SYSTEM.INFO section.
-
-Usage:
-    python3 generate_banner.py <image_path> [output_dir]
 """
-import sys, os, math, random, html
+import sys, os, html
 
 try:
     from PIL import Image
@@ -89,77 +84,38 @@ def esc(s):
 
 
 # ═══════════════════════════════════════════════════════════════
-# IMAGE → DITHERED PIXEL BLOCKS (Floyd-Steinberg)
+# IMAGE → PATH DATA
 # ═══════════════════════════════════════════════════════════════
 
-def floyd_steinberg_dither(img):
-    """Apply Floyd-Steinberg dithering to a grayscale PIL Image.
-    Returns a 2D list of booleans (True = draw pixel)."""
-    w, h = img.size
-    # Work with float array for error diffusion
-    pixels = [[float(img.getpixel((x, y))) for x in range(w)] for y in range(h)]
-    result = [[False] * w for _ in range(h)]
-
-    for y in range(h):
-        for x in range(w):
-            old = pixels[y][x]
-            # Threshold: > 128 = white (draw), <= 128 = black (don't draw)
-            new = 255.0 if old > 128 else 0.0
-            result[y][x] = (new > 0)  # True = light pixel = draw it
-            err = old - new
-            # Diffuse error to neighbors
-            if x + 1 < w:
-                pixels[y][x + 1] += err * 7.0 / 16.0
-            if y + 1 < h:
-                if x - 1 >= 0:
-                    pixels[y + 1][x - 1] += err * 3.0 / 16.0
-                pixels[y + 1][x] += err * 5.0 / 16.0
-                if x + 1 < w:
-                    pixels[y + 1][x + 1] += err * 1.0 / 16.0
-
-    return result
-
-
-def image_to_layers(image_path, grid_w, grid_h, num_layers=30):
-    """Convert image to dithered pixel layers for animated SVG."""
+def image_to_layers(image_path, grid_w, grid_h, num_layers=20):
+    """Convert image to run-length encoded layers mapped top-to-bottom for animation."""
     img = Image.open(image_path).convert("L")
     img = img.resize((grid_w, grid_h), Image.LANCZOS)
 
-    # Apply Floyd-Steinberg dithering
-    dithered = floyd_steinberg_dither(img)
-
-    # Collect all "on" pixels
     pixels = []
     for y in range(grid_h):
         for x in range(grid_w):
-            if dithered[y][x]:
+            # Since the character in the source image is light on dark,
+            # we draw the light pixels. A threshold of 100 works well to capture the detail.
+            if img.getpixel((x, y)) > 100:
                 pixels.append((x, y))
 
-    print(f"  Total pixels to draw: {len(pixels)} / {grid_w * grid_h} ({100*len(pixels)//(grid_w*grid_h)}%)")
+    print(f"  Total pixels to draw: {len(pixels)} / {grid_w * grid_h}")
 
-    # Distribute pixels into layers with spatial locality for a nice reveal
-    # Use a weighted random distribution that groups nearby pixels together
-    random.seed(42)
-
-    # Assign each pixel to a layer based on a combination of position and randomness
-    # This creates a "wave" reveal from top-left to bottom-right with some randomness
-    layer_assignments = []
-    for x, y in pixels:
-        # Normalized position (0-1)
-        progress = (y / grid_h) * 0.6 + (x / grid_w) * 0.2 + random.random() * 0.2
-        layer_idx = int(progress * num_layers)
-        layer_idx = min(layer_idx, num_layers - 1)
-        layer_assignments.append(layer_idx)
-
+    # Distribute pixels into layers from top to bottom to replicate the original animation effect.
     layers = [[] for _ in range(num_layers)]
-    for i, (x, y) in enumerate(pixels):
-        layers[layer_assignments[i]].append((x, y))
+    for x, y in pixels:
+        # Strictly use Y coordinate to determine layer for that scanner sweep effect
+        layer_idx = int((y / grid_h) * num_layers)
+        layer_idx = min(layer_idx, num_layers - 1)
+        layers[layer_idx].append((x, y))
 
     return layers, pixels
 
 
 def layer_to_path_data(layer):
-    """Convert a layer of (x,y) pixels to SVG path data with run-length encoding."""
+    """Convert a layer of (x,y) pixels to SVG path data using run-length encoding.
+    This creates long horizontal blocks which animate quickly and smoothly."""
     if not layer:
         return ""
     # Sort by y then x
@@ -175,6 +131,7 @@ def layer_to_path_data(layer):
                sorted_px[i + run][1] == y and
                sorted_px[i + run][0] == x + run):
             run += 1
+        
         if run == 1:
             cmds.append(f"M{x} {y}h1v1h-1z")
         else:
@@ -187,7 +144,8 @@ def layer_to_path_data(layer):
 def build_ascii_art_section(image_path, theme):
     """Build the complete ASCII art section of the SVG."""
     t = THEMES[theme]
-    layers, all_pixels = image_to_layers(image_path, GRID_W, GRID_H, num_layers=30)
+    # Original used exactly 20 layers
+    layers, all_pixels = image_to_layers(image_path, GRID_W, GRID_H, num_layers=20)
 
     parts = []
     # Art panel label
@@ -203,7 +161,7 @@ def build_ascii_art_section(image_path, theme):
         f'fill="{t["ART_PANEL_FILL"]}" stroke="{t["ART_PANEL_STROKE"]}"/>'
     )
 
-    # ── Phase 1: Violet pixel-by-pixel reveal ──
+    # ── Phase 1: Solid color top-to-bottom sweeping reveal ──
     parts.append(
         f'<g transform="translate({GRID_OFFSET_X},{GRID_OFFSET_Y}) scale({SCALE_X},{SCALE_Y})" '
         f'fill="{t["VIOLET"]}" shape-rendering="crispEdges">'
@@ -214,7 +172,8 @@ def build_ascii_art_section(image_path, theme):
     for i, layer in enumerate(layers):
         if not layer:
             continue
-        begin = 0.20 + i * 0.033  # stagger: ~1s total reveal
+        # The original staggered the begin time by exactly 0.03s for 20 layers starting at 0.20s
+        begin = 0.20 + i * 0.03
         path_d = layer_to_path_data(layer)
         if path_d:
             parts.append(
