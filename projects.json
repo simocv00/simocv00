@@ -1,45 +1,44 @@
 [
   {
-    "name": "LeadUnity",
-    "repo": "arifhaxn/lead_unity",
-    "logo": "logo.png",
-    "description": "Leading University's defense setup",
-    "tags": ["Flutter", "Dart", "NextJS"]
+    "name": "ft_irc",
+    "repo": "simocv00/ft_irc",
+    "logo": "",
+    "description": "IRC server from scratch — sockets, polling, channel management",
+    "tags": ["C++", "Sockets", "IRC"]
   },
   {
-    "name": "OnePick",
-    "repo": "arifhaxn/one_pick",
-    "logo": "op.png",
-    "description": "An One Piece trivia app to find your character",
-    "tags": ["Flutter", "Dart"]
+    "name": "minishell",
+    "repo": "simocv00/minishell",
+    "logo": "",
+    "description": "A Unix shell implementation with pipes, redirections, and builtins",
+    "tags": ["C", "Unix", "Processes"]
   },
   {
-    "name": "Chessy",
-    "repo": "arifhaxn/chessy",
-    "logo": "chess.png",
-    "description": "Chess timer app for all types of variations",
-    "tags": ["Flutter", "Dart"]
+    "name": "Philosophers",
+    "repo": "simocv00/Philosophers",
+    "logo": "",
+    "description": "Dining philosophers problem — threading, mutexes, deadlock avoidance",
+    "tags": ["C", "Pthreads", "Concurrency"]
   },
   {
-    "name": "Claster",
-    "repo": "arifhaxn/Claster",
-    "logo": "claster.png",
-    "description": "A class scheduling app for teachers which is used to track routines",
-    "tags": ["Flutter", "Dart", "Firebase"]
+    "name": "campaign-management-api",
+    "repo": "simocv00/campaign-management-api",
+    "logo": "",
+    "description": "RESTful campaign management API with Python backend",
+    "tags": ["Python", "API", "Backend"]
   },
   {
-    "name": "OneTELE",
-    "repo": "arifhaxn/OneTELE---Liilab-Teleprompter",
-    "logo": "onetele.png",
-    "description": "A custom teleprompter for liilab's recording studio",
-    "tags": ["Flutter", "Dart"]
+    "name": "mini_map_cub3d",
+    "repo": "simocv00/mini_map_cub3d",
+    "logo": "",
+    "description": "Raycasting engine with minimap — Wolfenstein 3D style graphics",
+    "tags": ["C", "Graphics", "Raycasting"]
   },
   {
-    "name": "Career Logic AI",
-    "repo": "arifhaxn/CareerLogic-AI",
-    "logo": "cl.png",
-    "description": "An AI Powered CV management and assesment system for aspiring career builders",
-    "tags": ["Flutter", "Dart", "Groq"]
+    "name": "Push_Swap",
+    "repo": "simocv00/Push_Swap",
+    "logo": "",
+    "description": "Sorting algorithm optimizer using a limited set of stack operations",
+    "tags": ["C", "Algorithms", "Sorting"]
   }
 ]
-
